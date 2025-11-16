@@ -23,6 +23,11 @@ app.get("/health", (req, res) => {
   res.send("ok");
 });
 
+app.get("/device", (req, res) => {
+  const {user_code} = req.query;
+  res.redirect(`http://localhost:3000/device?user_code=${user_code}`);
+})
+
 app.get("/api/me", async (req, res) => {
   const session = await auth.api.getSession({
     headers: fromNodeHeaders(req.headers),
