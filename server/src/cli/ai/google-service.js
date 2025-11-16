@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import { streamText } from "ai";
+import {  streamText } from "ai";
 import { google } from "@ai-sdk/google";
 import { config } from "../../config/google.config.js";
 
@@ -33,7 +33,7 @@ export class AiService {
       const result = streamText(streamConfig);
       let fullResponse = "";
 
-      for await (const chunk of result.textStream()){
+      for await (const chunk of result.textStream){
         fullResponse += chunk;
         if(onChunk) {
           onChunk(chunk);
