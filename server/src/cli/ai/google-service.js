@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import {  streamText } from "ai";
+import { generateObject, streamText } from "ai";
 import { google } from "@ai-sdk/google";
 import { config } from "../../config/google.config.js";
 
@@ -30,28 +30,59 @@ export class AiService {
         messages: messages,
       };
 
+      if (tools && Object.keys(tools).length > 0) {
+        streamConfig.tools = tools;
+        streamConfig.maxSteps = 5;
+
+        console.log(
+          chalk.gray(`[DEBUG TOOLS ENABLED]: ${Object.keys(tools).join(", ")}`)
+        );
+      }
+
       const result = streamText(streamConfig);
       let fullResponse = "";
 
-      for await (const chunk of result.textStream){
+      for await (const chunk of result.textStream) {
         fullResponse += chunk;
-        if(onChunk) {
+        if (onChunk) {
           onChunk(chunk);
         }
       }
 
       const fullResult = result;
+
+      const toolCalls = [];
+      const toolResults = [];
+
+      // Collect tool calls from all steps (if they exist)
+      if (fullResult.steps && Array.isArray(fullResult.steps)) {
+        for (const step of fullResult.steps) {
+          if (step.toolCalls && step.toolCalls.length > 0) {
+            for (const toolCall of step.toolCalls) {
+              toolCalls.push(toolCall);
+              if (onToolCall) {
+                onToolCall(toolCall);
+              }
+            }
+          }
+
+          // Collect tool results
+          if (step.toolResults && step.toolResults.length > 0) {
+            toolResults.push(...step.toolResults);
+          }
+        }
+      }
+
       return {
         content: fullResponse,
         finishResponse: fullResult.finishReason,
-        usage: fullResult.usage
-      }
+        usage: fullResult.usage,
+      };
     } catch (error) {
-        console.error(chalk.red("AI Service Error: " + error.message));
-        throw error;
+      console.error(chalk.red("AI Service Error: " + error.message));
+      throw error;
     }
   }
-
 
   /**
    * Sends a message to the AI and returns the full response
@@ -59,12 +90,40 @@ export class AiService {
    * @param {Object} [tools] - The tools to be passed to the AI
    * @returns {Promise<string>} - The full response from the AI
    */
-  async getMessage(messages, tools = undefined){
+  async getMessage(messages, tools = undefined) {
     let fullResponse = "";
-    await this.sendMessage(messages, (chunk) => {
+    const result = await this.sendMessage(
+      messages,
+      (chunk) => {
         fullResponse += chunk;
-    });
+      },
+      tools
+    );
 
-    return fullResponse
+    return result.content;
+  }
+
+  /**
+   * Generate structured output using a Zod schema
+   * @param {Object} schema - Zod schema
+   * @param {string} prompt - Prompt for generation
+   * @returns {Promise<Object>} Parsed object matching the schema
+   */
+  async generateStructured(schema, prompt) {
+    try {
+      const result = await generateObject({
+        model: this.model,
+        schema: schema,
+        prompt: prompt,
+      });
+
+      return result.object;
+    } catch (error) {
+      console.error(
+        chalk.red("AI Structured Generation Error:"),
+        error.message
+      );
+      throw error;
+    }
   }
 }

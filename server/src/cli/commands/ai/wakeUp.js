@@ -5,6 +5,7 @@ import { select } from "@clack/prompts";
 import yoctoSpinner from "yocto-spinner";
 import { Command } from "commander";
 import { startChat } from "../../chat/chat-with-ai.js";
+import { startAgentChat } from "../../chat/chat-with-ai-agent.js";
 
 const wakeUpAction = async () => {
   const token = await getStoredToken();
@@ -70,7 +71,7 @@ const wakeUpAction = async () => {
       console.log(chalk.yellow("Tool Calling Mode Activated."));
       break;
     case "agent":
-      console.log(chalk.cyan("Agentic Mode Activated."));
+      startAgentChat();
       break;
   }
 };
